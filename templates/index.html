@@ -1,1 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceBio - HKU Student Budgeting Companion</title>
+    <!-- 引入外部库：Tailwind CSS, Chart.js 和 FontAwesome 图标 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 生物摇摆动画 */
+        @keyframes sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+        /* 对话气泡浮动动画 */
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
+        /* 背景装饰漂浮动画 */
+        @keyframes drift { 0% { transform: translate(0, 0); } 50% { transform: translate(20px, -15px); } 100% { transform: translate(0, 0); } }
+        
+        .animate-sway { animation: sway 4s ease-in-out infinite; }
+        .animate-float { animation: float 5s ease-in-out infinite; }
+        .animate-drift { animation: drift 6s ease-in-out infinite; }
+        
+        .transition-all-custom { transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* 玻璃拟态风格设计 */
+        .glass { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        
+        /* 动态环境配色主题 */
+        .theme-healthy { background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%); }
+        .theme-warning { background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%); }
+        .theme-critical { background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%); }
 
+        /* 对话气泡样式 */
+        .speech-bubble { position: relative; background: white; border-radius: 2rem; box-shadow: 0 15px 35px -5px rgba(0,0,0,0.08); }
+        .speech-bubble::after { content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); border-width: 15px 15px 0; border-style: solid; border-color: white transparent transparent; }
+        
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 font-sans transition-colors duration-1000">
+
+    <!-- 顶部导航栏 -->
+    <nav class="glass sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-sm">
+        <div class="flex items-center gap-3">
+            <div id="nav-icon" class="text-3xl text-emerald-600">🌳</div>
+            <div>
+                <h1 class="text-xl font-black text-emerald-900 leading-none">FinanceBio</h1>
+                <span id="nav-subtitle" class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest italic">Campus Life Companion</span>
+            </div>
+        </div>
+        
+        <div class="flex gap-4 items-center">
+            <!-- 宠物设置与语言切换 -->
+            <div class="hidden md:flex flex-col items-end mr-2">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-signature text-[10px] text-emerald-400"></i>
+                    <input id="pet-name-input" type="text" class="bg-transparent border-b border-emerald-200 text-sm font-black text-emerald-800 outline-none text-right w-28 focus:border-emerald-500" placeholder="Name your pet">
+                </div>
+                <div class="flex gap-3 mt-1">
+                    <select id="pet-selector" class="bg-transparent border-none text-[10px] font-bold text-slate-400 cursor-pointer outline-none hover:text-emerald-500 transition-colors">
+                        <option value="tree">Wealth Tree</option>
+                        <option value="dog">Loyal Dog</option>
+                        <option value="cat">Lucky Cat</option>
+                    </select>
+                    <select id="lang-selector" class="bg-transparent border-none text-[10px] font-bold text-slate-400 cursor-pointer outline-none hover:text-emerald-500 transition-colors">
+                        <option value="en">English</option>
+                        <option value="tc">繁體中文</option>
+                        <option value="sc">简体中文</option>
+                    </select>
+                </div>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 border border-emerald-200 shadow-sm">
+                <i class="fas fa-graduation-cap text-xl"></i>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto p-4 md:p-10">
+        
+        <!-- 环境展示与生物状态区 -->
+        <section id="env-container" class="mb-12 text-center relative pt-12 pb-16 rounded-[4rem] transition-all-custom shadow-2xl overflow-hidden min-h-[550px] flex flex-col items-center justify-center theme-healthy">
+            
+            <!-- 动态环境装饰层 -->
+            <div id="env-decor" class="absolute inset-0 pointer-events-none z-0"></div>
+
+            <!-- 对话气泡 (宠物视角 AI) -->
+            <div id="ai-bubble-container" class="animate-float z-20 mb-10 w-full max-w-lg px-4">
+                <div class="speech-bubble glass p-6 md:p-8 border border-white/50 relative">
+                    <div id="ai-content" class="text-base md:text-lg leading-relaxed text-emerald-950 font-semibold italic">
+                        "Welcome to our ecosystem!"
+                    </div>
+                    <button id="btn-ai-refresh" class="absolute -top-3 -right-3 bg-white w-10 h-10 rounded-full shadow-lg text-emerald-500 hover:scale-110 active:scale-95 transition-transform flex items-center justify-center border border-emerald-50">
+                        <i class="fas fa-magic text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 生物主体形象 -->
+            <div class="relative z-10 group">
+                <div id="health-tag" class="absolute -top-6 -right-16 flex flex-col items-center gap-1 scale-90">
+                    <div id="health-dot" class="w-5 h-5 rounded-full animate-ping bg-emerald-500"></div>
+                    <span id="health-label" class="text-[11px] font-black uppercase text-emerald-700 bg-white/80 px-2 py-0.5 rounded shadow-sm">Excellent</span>
+                </div>
+                <div class="creature-container h-56 md:h-72 flex items-center justify-center">
+                    <div id="visual-pet" class="text-[140px] md:text-[180px] animate-sway select-none drop-shadow-[0_20px_50px_rgba(0,0,0,0.12)]">🌳</div>
+                </div>
+            </div>
+
+            <!-- 财务状态面板 -->
+            <div class="max-w-md w-full mx-auto mt-8 px-8 z-10">
+                <div class="flex justify-between items-end mb-3">
+                    <div class="text-left">
+                        <p id="label-balance" class="text-[10px] font-black text-emerald-800/50 uppercase tracking-widest">Available Balance</p>
+                        <h2 id="budget-amount" class="text-3xl font-black text-emerald-900 leading-tight tracking-tighter">$0.00</h2>
+                    </div>
+                    <div class="text-right">
+                        <span id="budget-percent" class="text-lg font-black text-emerald-700">0%</span>
+                    </div>
+                </div>
+                <div class="w-full bg-black/10 rounded-full h-5 p-[4px] backdrop-blur-md shadow-inner">
+                    <div id="budget-progress" class="h-full rounded-full transition-all duration-1000 shadow-md" style="width: 0%"></div>
+                </div>
+                <p id="status-quote" class="mt-6 text-emerald-900/40 text-xs font-bold italic">"..."</p>
+            </div>
+        </section>
+
+        <!-- 功能模块网格 -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <!-- 快捷入账模块 -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="glass rounded-[2.5rem] p-8 shadow-xl border border-white">
+                    <h3 id="title-add" class="text-lg font-black mb-6 flex items-center gap-3 text-slate-700 uppercase tracking-tight">Record Bill</h3>
+                    <div class="space-y-5">
+                        <div class="relative">
+                            <input id="input-text" type="text" placeholder="+500 Salary or CYM lunch 45" class="w-full pl-5 pr-14 py-4 rounded-2xl ring-2 ring-slate-100 focus:ring-4 ring-emerald-500/20 outline-none bg-white/50 text-base font-semibold transition-all">
+                            <button id="btn-voice" class="absolute right-2 top-2 bg-blue-50 text-blue-500 w-10 h-10 rounded-xl hover:bg-blue-100 transition-colors flex items-center justify-center">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button id="btn-camera" class="bg-slate-50 text-slate-600 py-4 rounded-2xl hover:bg-slate-100 transition-all text-xs font-black uppercase tracking-widest border border-slate-100">OCR Scan</button>
+                            <button id="btn-submit" class="bg-emerald-600 text-white py-4 rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 text-xs font-black uppercase tracking-widest">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- 地点统计模块 -->
+                <div class="glass rounded-[2.5rem] p-8 shadow-xl border border-white">
+                    <h3 id="title-loc" class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 tracking-tighter">Frequent Spending Spots</h3>
+                    <div id="location-summary" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- 数据可视化模块 -->
+            <div class="lg:col-span-3">
+                <div class="glass rounded-[2.5rem] p-8 shadow-xl border border-white h-full">
+                    <h3 id="title-chart" class="text-lg font-black text-slate-700 uppercase tracking-tight mb-8">Campus Spending Structure</h3>
+                    <div class="h-64 flex items-center justify-center">
+                        <canvas id="spendingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史交易流水列表 -->
+        <section class="mt-12">
+            <h3 id="title-history" class="text-xl font-black text-slate-800 uppercase tracking-tight mb-6 px-4">Transaction History</h3>
+            <div class="glass rounded-[3rem] shadow-xl border border-white overflow-hidden">
+                <div class="overflow-x-auto no-scrollbar">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50/50">
+                            <tr class="text-slate-400 border-b border-slate-100">
+                                <th id="th-date" class="p-6 font-black text-[10px] uppercase">Date</th>
+                                <th id="th-item" class="p-6 font-black text-[10px] uppercase">Description</th>
+                                <th id="th-loc" class="p-6 font-black text-[10px] uppercase">Location</th>
+                                <th id="th-cat" class="p-6 font-black text-[10px] uppercase">Category</th>
+                                <th id="th-amt" class="p-6 font-black text-[10px] uppercase text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-history" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 全屏加载反馈遮罩 -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center z-[100]">
+        <div class="bg-white p-12 rounded-[4rem] text-center space-y-6 shadow-2xl scale-95 animate-in zoom-in duration-300">
+            <div class="relative w-24 h-24 mx-auto">
+                <div class="absolute inset-0 border-8 border-emerald-100 rounded-full"></div>
+                <div class="absolute inset-0 border-8 border-emerald-500 border-t-transparent animate-spin rounded-full"></div>
+            </div>
+            <p id="loading-text" class="font-black text-slate-700 text-xl tracking-tight uppercase">Processing...</p>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * FinanceBio - 核心交互逻辑与三语适配
+         */
+        const apiKey = ""; 
+        let balance = 5000, petName = "Buddy", currentPet = 'tree', currentLang = 'en', transactions = [];
+        const healthBase = 8000;
+
+        // API URL 处理辅助函数 (解决路径解析错误)
+        const getApiUrl = (endpoint) => {
+            // 在预览环境中，带 / 的绝对路径可能解析失败
+            // 使用相对于当前页面位置的路径更安全
+            const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+            // 如果是在 Flask 环境运行，通常基础路径是有效的
+            if (window.location.origin && window.location.origin !== 'null' && !window.location.protocol.startsWith('blob')) {
+                return '/' + cleanEndpoint;
+            }
+            // 否则返回 null 以触发 Demo 模式
+            return null;
+        };
+
+        const i18n = {
+            en: {
+                nav_sub: 'Campus Edition', bal_label: 'Available Balance', add_title: 'Record Bill', loc_title: 'Frequent Spending Spots', chart_title: 'Campus Spending Structure', hist_title: 'Transaction History',
+                th: { date: 'Date', item: 'Item', loc: 'Location', cat: 'Category', amt: 'Amount' },
+                health: { high: 'Thriving', mid: 'Warning', low: 'Critical' },
+                quotes: { 
+                    high: '"Everything is blooming! You are making great financial choices."', 
+                    mid: '"Clouds are gathering. Maybe eat at the CYM canteen today?"', 
+                    low: '"I am starving... help me save money, or I might wither!"' 
+                },
+                load: { scan: 'Scanning receipt...', voice: 'Listening to command...' },
+                cats: ['Dining', 'Hall Fee', 'Academic', 'Transport', 'Social', 'Digital', 'Income', 'Others'],
+                ai_thinking: 'Sensing your wallet...'
+            },
+            tc: {
+                nav_sub: '港大校園版', bal_label: '賬戶可用餘額', add_title: '新增賬目', loc_title: '高頻消費地點', chart_title: '校園消費結構', hist_title: '財務流水歷史',
+                th: { date: '日期', item: '摘要', loc: '地點', cat: '分類', amt: '金額' },
+                health: { high: '茁壯成長', mid: '略顯疲態', low: '瀕危狀態' },
+                quotes: { 
+                    high: '"陽光燦爛，生機勃勃！你的財務管理非常出色。"', 
+                    mid: '"薄霧籠罩，也許該去莊明苑吃一頓平價午餐了。"', 
+                    low: '"救救我...我快枯萎了，我們去SU食堂省錢吧..."' 
+                },
+                load: { scan: '正在掃描賬單...', voice: '正在聆聽指令...' },
+                cats: ['飲食', '舍堂費', '學術', '交通', '社交', '數碼', '收入', '其他'],
+                ai_thinking: '正在感應中...'
+            },
+            sc: {
+                nav_sub: '港大校园版', bal_label: '账户可用余额', add_title: '新增账目', loc_title: '高频消费地点', chart_title: '校园消费结构', hist_title: '财务流水历史',
+                th: { date: '日期', item: '摘要', loc: '地点', cat: '分类', amt: '金额' },
+                health: { high: '茁壮成长', mid: '略显疲态', low: '濒危状态' },
+                quotes: { 
+                    high: '"阳光灿烂，生机勃勃！你的财务管理非常出色。"', 
+                    mid: '"薄雾笼罩，也许该去庄明苑吃一顿平价午餐了。"', 
+                    low: '"救救我...我快枯萎了，我们去SU食堂省钱吧..."' 
+                },
+                load: { scan: '正在扫描账单...', voice: '正在聆听指令...' },
+                cats: ['饮食', '舍堂费', '学术', '交通', '社交', '数码', '收入', '其他'],
+                ai_thinking: '正在感应中...'
+            }
+        };
+
+        const petIcons = {
+            tree: { stages: ['🍂', '🌿', '🌳', '🌲'] },
+            dog: { stages: ['🦴', '🐕', '🐶', '🐕‍🦺'] },
+            cat: { stages: ['😿', '😐', '😺', '😻'] }
+        };
+
+        const envDecorations = {
+            healthy: ['☀️', '✨', '🦋', '🌸', '🌈'],
+            warning: ['☁️', '🍂', '🌫️'],
+            critical: ['🌧️', '⚡', '⛈️', '💨']
+        };
+
+        let spendingChart;
+
+        window.onload = async () => {
+            const apiUrl = getApiUrl('/api/data');
+            if (apiUrl) {
+                try {
+                    const res = await fetch(apiUrl);
+                    if (res.ok) {
+                        const data = await res.json();
+                        balance = data.balance; 
+                        petName = data.petName || "Buddy"; 
+                        currentPet = data.currentPet || 'tree'; 
+                        currentLang = data.language || 'en'; 
+                        transactions = data.transactions;
+                    }
+                } catch (e) {
+                    console.warn("Backend unaccessible. Entering Demo Mode.");
+                }
+            } else {
+                console.info("Local environment detected. Demo Mode enabled.");
+            }
+
+            document.getElementById('pet-name-input').value = petName;
+            document.getElementById('pet-selector').value = currentPet;
+            document.getElementById('lang-selector').value = currentLang;
+
+            initChart();
+            renderUI();
+            fetchAIAdvice();
+        };
+
+        async function sync() {
+            const apiUrl = getApiUrl('/api/data');
+            if (!apiUrl) return; // 演示模式下不向后端发送同步请求
+            try {
+                await fetch(apiUrl, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ balance, petName, currentPet, language: currentLang, transactions }) 
+                });
+            } catch (e) {
+                console.error("Sync failed");
+            }
+        }
+
+        function renderUI() {
+            const lang = i18n[currentLang];
+            const percent = Math.min(Math.max((balance / healthBase) * 100, 0), 100);
+            
+            // 更新 UI 标签
+            document.getElementById('nav-subtitle').innerText = lang.nav_sub;
+            document.getElementById('label-balance').innerText = lang.bal_label;
+            document.getElementById('title-add').innerText = lang.add_title;
+            document.getElementById('title-loc').innerText = lang.loc_title;
+            document.getElementById('title-chart').innerText = lang.chart_title;
+            document.getElementById('title-history').innerText = lang.hist_title;
+            ['date', 'item', 'loc', 'cat', 'amt'].forEach(k => document.getElementById(`th-${k}`).innerText = lang.th[k]);
+
+            // 更新生物形态
+            const stageIdx = Math.min(Math.floor((percent / 100) * 3.99), 3);
+            document.getElementById('visual-pet').innerText = petIcons[currentPet].stages[stageIdx];
+            document.getElementById('nav-icon').innerText = petIcons[currentPet].stages[2];
+
+            // 切换主题
+            let theme = 'theme-healthy', hLabel = lang.health.high, quoteText = lang.quotes.high, decorSet = envDecorations.healthy;
+            if (percent <= 30) { 
+                theme = 'theme-critical'; hLabel = lang.health.low; quoteText = lang.quotes.low; decorSet = envDecorations.critical;
+            } else if (percent <= 70) { 
+                theme = 'theme-warning'; hLabel = lang.health.mid; quoteText = lang.quotes.mid; decorSet = envDecorations.warning;
+            }
+
+            document.getElementById('env-container').className = `mb-12 text-center relative pt-12 pb-16 rounded-[4rem] transition-all-custom shadow-2xl overflow-hidden min-h-[550px] flex flex-col items-center justify-center ${theme}`;
+            document.getElementById('health-label').innerText = hLabel;
+            document.getElementById('status-quote').innerText = quoteText;
+            document.getElementById('budget-amount').innerText = `$${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('budget-percent').innerText = `${Math.round(percent)}%`;
+            document.getElementById('budget-progress').style.width = `${percent}%`;
+            document.getElementById('budget-progress').className = `h-full rounded-full transition-all duration-1000 shadow-md ${percent > 70 ? 'bg-emerald-500' : percent > 30 ? 'bg-yellow-500' : 'bg-red-500'}`;
+
+            // 背景装饰生成
+            const decorLayer = document.getElementById('env-decor');
+            decorLayer.innerHTML = '';
+            decorSet.forEach((emoji, i) => {
+                const el = document.createElement('span');
+                el.innerText = emoji;
+                el.className = 'absolute text-3xl opacity-30 animate-drift pointer-events-none';
+                el.style.left = `${Math.random() * 80 + 10}%`;
+                el.style.top = `${Math.random() * 70 + 10}%`;
+                el.style.animationDelay = `${i * 1.5}s`;
+                decorLayer.appendChild(el);
+            });
+
+            renderHistory();
+            renderLocationSummary();
+            updateChart();
+        }
+
+        function renderHistory() {
+            const body = document.getElementById('transaction-history');
+            body.innerHTML = transactions.slice().reverse().map(tx => `
+                <tr class="hover:bg-white/40 transition-colors">
+                    <td class="p-6 text-slate-400 font-mono text-xs">${tx.date}</td>
+                    <td class="p-6 font-bold text-slate-700">${tx.item}</td>
+                    <td class="p-6 text-slate-400 text-xs italic">${tx.loc}</td>
+                    <td class="p-6"><span class="px-3 py-1 rounded-full text-[10px] font-black ${tx.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">${tx.cat}</span></td>
+                    <td class="p-6 text-right font-mono font-black ${tx.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${tx.type === 'income' ? '+' : '-'}$${tx.amt.toFixed(2)}</td>
+                </tr>`).join('');
+        }
+
+        function renderLocationSummary() {
+            const locMap = {};
+            transactions.filter(t => t.type === 'expense').forEach(t => { locMap[t.loc] = (locMap[t.loc] || 0) + t.amt; });
+            const sorted = Object.entries(locMap).sort((a,b) => b[1]-a[1]).slice(0, 3);
+            const summary = document.getElementById('location-summary');
+            summary.innerHTML = sorted.map(([loc, amt]) => `
+                <div class="flex justify-between items-center px-2">
+                    <span class="text-sm font-bold text-slate-600">${loc}</span>
+                    <span class="font-mono text-xs font-black text-slate-400">-$${amt.toFixed(1)}</span>
+                </div>`).join('');
+        }
+
+        function handleInput(text) {
+            let type = 'expense', lower = text.toLowerCase(), amt = parseFloat(text.match(/\d+(\.\d+)?/)?.[0] || 0);
+            if (text.includes('+') || lower.includes('income') || text.includes('收入')) type = 'income';
+            
+            const lang = i18n[currentLang];
+            let cat = type === 'income' ? lang.cats[6] : lang.cats[7], loc = 'Campus';
+
+            // 港大校园地点自动建模
+            if (lower.includes('cym') || lower.includes('eat') || lower.includes('饭')) { cat = lang.cats[0]; loc = 'CYM Canteen'; }
+            else if (lower.includes('hall') || lower.includes('宿')) { cat = lang.cats[1]; loc = 'Student Hall'; }
+            else if (lower.includes('print') || lower.includes('学') || lower.includes('书')) { cat = lang.cats[2]; loc = 'Main Library'; }
+            else if (lower.includes('mtr') || lower.includes('港铁') || lower.includes('地铁')) { cat = lang.cats[3]; loc = 'HKU Station'; }
+            else if (lower.includes('k-town') || lower.includes('玩') || lower.includes('bar')) { cat = lang.cats[4]; loc = 'Kennedy Town'; }
+
+            transactions.push({ id: Date.now(), date: new Date().toISOString().split('T')[0], item: text.replace(/[+\d.]/g, '').trim() || 'Record', loc, cat, amt, type });
+            balance += type === 'income' ? amt : -amt;
+            renderUI(); sync();
+        }
+
+        document.getElementById('btn-submit').onclick = () => { 
+            const i = document.getElementById('input-text'); 
+            if(i.value){ handleInput(i.value); i.value=''; } 
+        };
+
+        document.getElementById('pet-selector').onchange = (e) => { currentPet = e.target.value; renderUI(); sync(); };
+        document.getElementById('lang-selector').onchange = (e) => { currentLang = e.target.value; renderUI(); sync(); };
+        document.getElementById('pet-name-input').onchange = (e) => { petName = e.target.value; sync(); };
+        document.getElementById('btn-ai-refresh').onclick = fetchAIAdvice;
+
+        function initChart() {
+            const ctx = document.getElementById('spendingChart').getContext('2d');
+            spendingChart = new Chart(ctx, {
+                type: 'doughnut', data: { labels: i18n[currentLang].cats.slice(0, 6), datasets: [{ data: [0,0,0,0,0,0], backgroundColor: ['#fb7185', '#34d399', '#60a5fa', '#facc15', '#a78bfa', '#94a3b8'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10, weight: 'bold' } } } } }
+            });
+        }
+
+        function updateChart() {
+            const data = new Array(6).fill(0);
+            transactions.filter(t => t.type === 'expense').forEach(t => {
+                const idx = i18n[currentLang].cats.indexOf(t.cat);
+                if (idx >= 0 && idx < 6) data[idx] += t.amt;
+            });
+            spendingChart.data.labels = i18n[currentLang].cats.slice(0, 6);
+            spendingChart.data.datasets[0].data = data;
+            spendingChart.update();
+        }
+
+        async function fetchAIAdvice() {
+            const aiText = document.getElementById('ai-content'); 
+            aiText.innerText = i18n[currentLang].ai_thinking;
+            
+            const prompt = `
+                You are a virtual pet named ${petName} (Species: ${currentPet}). 
+                User's Language: ${currentLang}.
+                Current Balance: ${balance} HKD. 
+                Recent transactions: ${JSON.stringify(transactions.slice(-3))}.
+                Instruction: Speak as a pet. If balance is low, sound hungry and beg them to save money (suggest eating at HKU CYM Canteen). If balance is high, be very energetic. 
+                Response length: Max 40 words. Use the chosen language.
+            `;
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json(); 
+                aiText.innerText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Hello!";
+            } catch (e) { aiText.innerText = "Listening to the campus wind..."; }
+        }
+
+        function showLoading(textKey, duration, callback) {
+            const overlay = document.getElementById('loading-overlay');
+            document.getElementById('loading-text').innerText = i18n[currentLang].load[textKey];
+            overlay.classList.replace('hidden', 'flex');
+            setTimeout(() => { overlay.classList.replace('flex', 'hidden'); callback(); }, duration);
+        }
+
+        document.getElementById('btn-camera').onclick = () => showLoading('scan', 2000, () => handleInput("CYM Lunch 48"));
+        document.getElementById('btn-voice').onclick = () => showLoading('voice', 1500, () => handleInput("MTR to Central 12.5"));
+    </script>
+</body>
+</html>
